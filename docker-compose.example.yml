@@ -1,0 +1,31 @@
+services:
+  app:
+    image: python:3.10
+    command: python -m app
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: email_db
+      TELEGRAM_BOT_TOKEN:
+      OPENAI_API_KEY:
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+    links:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: email_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+
+volumes:
+  postgres_data:
