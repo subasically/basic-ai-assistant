@@ -1,5 +1,6 @@
 import os
 import time
+import re
 from flask import Flask, request
 import schedule
 from notifications import send_telegram_notification, handle_telegram_command
@@ -93,40 +94,60 @@ def fetch_new_emails():
         )
         body = parse_email_body(payload)
 
-        email_data = {
-            "id": message["id"],
-            "snippet": msg["snippet"],
-            "sender_name": sender_name,
-            "sender_email": sender_email,
-            "subject": subject,
-            "body": body,
-            "category": (
-                categorize_email({"subject": subject, "body": body})
-                if subject or body
-                else "other"
-            ),
-            "notification_sent": False,
-            "summary": (
-                summarize_email({"subject": subject, "body": body})
-                if subject or body
-                else ""
-            ),
-        }
-        emails.append(email_data)
+        # Check if the email is part of a thread
+        thread_id = msg.get("threadId")
+        existing_email = next(
+            (email for email in emails if email["thread_id"] == thread_id), None
+        )
+
+        if existing_email:
+            existing_email["body"].append(body)
+        else:
+            email_data = {
+                "id": message["id"],
+                "snippet": msg["snippet"],
+                "sender_name": sender_name,
+                "sender_email": sender_email,
+                "subject": subject,
+                "body": [body],
+                "category": (
+                    categorize_email({"subject": subject, "body": body})
+                    if subject or body
+                    else "other"
+                ),
+                "notification_sent": False,
+                "summary": (
+                    summarize_email({"subject": subject, "body": body})
+                    if subject or body
+                    else ""
+                ),
+                "thread_id": thread_id,
+            }
+            emails.append(email_data)
     return emails
 
 
 # Parse email body
 def parse_email_body(payload):
-    import base64
-
+    """Extracts the plain text body from an email payload."""
     try:
-        body_data = payload["parts"][0]["body"]["data"]
-        body_data = base64.urlsafe_b64decode(body_data).decode("utf-8")
-        return body_data
+        if "parts" in payload:
+            for part in payload["parts"]:
+                if part["mimeType"] == "text/plain":
+                    body_data = part["body"].get("data", "")
+                    if body_data:
+                        body = base64.urlsafe_b64decode(body_data).decode("utf-8")
+                        return re.sub(r"\n+", "\n", body).strip()  # Clean up newlines
+        else:
+            body_data = payload["body"].get("data", "")
+            if body_data:
+                body = base64.urlsafe_b64decode(body_data).decode("utf-8")
+                return re.sub(r"\n+", "\n", body).strip()
+
     except Exception as e:
         print("Error parsing email body:", e)
-        return ""
+
+    return ""
 
 
 # Schedule the email fetch

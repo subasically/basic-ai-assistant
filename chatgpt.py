@@ -19,7 +19,7 @@ client = openai.OpenAI(
 # Categorize email using ChatGPT
 def categorize_email(email_data):
     try:
-        print("Categorizing email...")
+        print(f"Categorizing {email_data['subject']} email...")
         categories_str = ", ".join(EMAIL_CATEGORIES)
 
         completion = client.chat.completions.create(
@@ -60,7 +60,7 @@ def categorize_email(email_data):
 
 def summarize_email(email_data):
     try:
-        print("Summarizing email...")
+        print(f"Summarizing {email_data['subject']} email...")
         completion = client.chat.completions.create(
             model="gpt-4",
             messages=[

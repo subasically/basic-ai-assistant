@@ -25,8 +25,33 @@ def mark_as_notified(email_id):
         print("Error marking email as notified:", e)
 
 
+def check_if_notified(email_id):
+    try:
+        conn = psycopg2.connect(
+            dbname="email_db",
+            user="admin",
+            password="password",
+            host="postgres",
+            port=5432,
+        )
+        cursor = conn.cursor()
+        query = "SELECT notified FROM emails WHERE email_id = %s"
+        cursor.execute(query, (email_id,))
+        notified = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return notified[0]
+    except Exception as e:
+        print("Error checking if email is notified:", e)
+        return False
+
+
 # Send notification via Telegram
 def send_telegram_notification(email_data):
+    if check_if_notified(email_data["id"]):
+        print(f"Email {email_data['id']} already notified.")
+        return
+
     print("Sending Telegram notification...")
     # print(email_data)
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
